@@ -1274,7 +1274,44 @@
             }
             resultElement.innerHTML = result_html;
         }
+        function calcDisplaySize() {
+            const farthestViewer = parseFloat(document.getElementById("farthestViewer").value);
+            const useCase = document.getElementById("useCase").value;
+            const resultElement = document.getElementById("displaySizeResult");
 
+            if (isNaN(farthestViewer) || !useCase) {
+                return showDynamicAlert("Please fill in all fields.", "displaySizeResult");
+         }
+
+            if (farthestViewer <= 0) {
+                return showDynamicAlert("Distance must be greater than zero.", "displaySizeResult");
+        }
+
+  // DISCAS factors: Basic Decision ~6x, Analytical ~4x image height ratio
+            let ratio;
+            if (useCase === "ADM") ratio = 4; // Analytical Decision Making
+            else if (useCase === "BDM") ratio = 6; // Basic Decision Making
+            else return showDynamicAlert("Invalid use case.", "displaySizeResult");
+
+  // Image height in feet and inches
+            const imageHeightFt = farthestViewer / ratio;
+            const imageHeightIn = imageHeightFt * 12;
+
+  // Assuming 16:9 aspect ratio
+            const widthRatio = 16;
+            const heightRatio = 9;
+            const diagonalIn = imageHeightIn * Math.sqrt(widthRatio ** 2 + heightRatio ** 2) / heightRatio;
+
+  // Results
+            const resultHtml = `
+                <p><strong>Farthest Viewer:</strong> ${farthestViewer.toFixed(1)} ft</p>
+                <p><strong>Use Case:</strong> ${useCase === "ADM" ? "Analytical Decision Making (4:1)" : "Basic Decision Making (6:1)"}</p>
+                <p><strong>Recommended Image Height:</strong> ${imageHeightIn.toFixed(1)} in (${imageHeightFt.toFixed(2)} ft)</p>
+                <p><strong>Recommended Diagonal (16:9):</strong> ${diagonalIn.toFixed(1)} in</p>
+            `;
+
+            resultElement.innerHTML = resultHtml;
+}
         function calcTextVisibility() {
             const diagonal = parseFloat(document.getElementById('textDiagonal').value);
             const aspect = document.getElementById('textAspectRatio').value;
