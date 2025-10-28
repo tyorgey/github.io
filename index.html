@@ -284,6 +284,7 @@
                         <div class="nav-category-title">TV Display</div>
                         <a href="#display-size-calculator">Display Size</a>
                         <a href="#text-visibility-calculator">Text Visibility</a>
+<a href="#ppd-display-calculator">PPD Display</a>
                     </div>
                     <div class="nav-category">
                         <div class="nav-category-title">AVoIP</div>
@@ -660,6 +661,52 @@
                         <div id="textVisibilityResult" class="result-text-multi"></div>
                     </div>
                 </div>
+
+<div id="ppd-display-calculator" class="calculator-card hidden">
+    <h2>Pixels-Per-Degree (PPD) Display Calculator</h2>
+    <p class="calculator-description">Estimate perceived display sharpness based on screen size, resolution, and viewing distance. This helps determine when higher resolutions become visually redundant.</p>
+    <div class="form-grid">
+        <div class="form-group">
+            <label for="ppdDiagonal">Screen Diagonal (inches)</label>
+            <input type="number" id="ppdDiagonal" value="65">
+        </div>
+        <div class="form-group">
+            <label for="ppdAspect">Aspect Ratio</label>
+            <select id="ppdAspect">
+                <option value="16:9">16:9</option>
+                <option value="21:9">21:9</option>
+                <option value="4:3">4:3</option>
+                <option value="3:2">3:2</option>
+                <option value="1:1">1:1</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="ppdWidth">Horizontal Pixels</label>
+            <input type="number" id="ppdWidth" value="3840">
+        </div>
+        <div class="form-group">
+            <label for="ppdHeight">Vertical Pixels</label>
+            <input type="number" id="ppdHeight" value="2160">
+        </div>
+        <div class="form-group">
+            <label for="ppdDistance">Viewing Distance</label>
+            <input type="number" id="ppdDistance" value="8">
+        </div>
+        <div class="form-group">
+            <label for="ppdUnits">Units</label>
+            <select id="ppdUnits">
+                <option value="ft" selected>Feet</option>
+                <option value="m">Meters</option>
+            </select>
+        </div>
+    </div>
+    <button onclick="calcPPDDisplay()" class="calc-button">Calculate PPD</button>
+    <div class="result-container">
+        <div class="result-label">Results</div>
+        <div id="ppdResults" class="result-text-multi"></div>
+    </div>
+</div>
+
                 <div id="bandwidth-calculator" class="calculator-card hidden">
                     <h2>AVoIP Bandwidth</h2>
                     <p class="calculator-description">Estimate the total network bandwidth required for a given number of AVoIP streams at various resolutions and compression types.</p>
@@ -1536,6 +1583,62 @@
             const totalBw = singleStreamBw * quantity;
             resultElement.innerText = `${totalBw.toFixed(2)} Mbps`;
         }
-    </script>
+    
+function calcPPDDisplay() {
+    const diag = parseFloat(document.getElementById('ppdDiagonal').value);
+    const aspect = document.getElementById('ppdAspect').value;
+    const pxW = parseFloat(document.getElementById('ppdWidth').value);
+    const pxH = parseFloat(document.getElementById('ppdHeight').value);
+    const dist = parseFloat(document.getElementById('ppdDistance').value);
+    const units = document.getElementById('ppdUnits').value;
+    const resultElement = document.getElementById('ppdResults');
+
+    if ([diag, pxW, pxH, dist].some(v => isNaN(v) || v <= 0)) {
+        return showDynamicAlert("Please enter valid positive values for all fields.", "ppdResults");
+    }
+
+    let dInches = units === 'm' ? dist * 39.3701 : dist * 12;
+    const [rw, rh] = aspect.split(':').map(Number);
+    const denom = Math.sqrt(rw * rw + rh * rh);
+    const widthIn = diag * rw / denom;
+    const heightIn = diag * rh / denom;
+
+    const ppi = Math.sqrt(pxW * pxW + pxH * pxH) / diag;
+    const radToDeg = (r) => r * 180 / Math.PI;
+    const fovH = radToDeg(2 * Math.atan((widthIn / 2) / dInches));
+    const fovV = radToDeg(2 * Math.atan((heightIn / 2) / dInches));
+    const diagPx = Math.sqrt(pxW * pxW + pxH * pxH);
+    const fovD = radToDeg(2 * Math.atan((diag / 2) / dInches));
+
+    const ppdH = pxW / fovH;
+    const ppdV = pxH / fovV;
+    const ppdD = diagPx / fovD;
+
+    let verdict = "";
+    if (ppdH < 30) verdict = "Pixels visible (low detail)";
+    else if (ppdH < 60) verdict = "Good, not eye-limited";
+    else if (ppdH < 90) verdict = "Retina-class for most";
+    else if (ppdH < 120) verdict = "Retina-class for almost all";
+    else verdict = "Beyond human limits";
+
+    let advice = "";
+    if (ppdH >= 90) advice = "4K+ unlikely to look sharper for almost all viewers at this distance.";
+    else if (ppdH >= 60) advice = "4K gives diminishing returns; some may notice, many won’t.";
+    else advice = "Higher resolution can make a visible difference at this distance.";
+
+    resultElement.innerHTML = `
+        <p><strong>Width:</strong> ${widthIn.toFixed(2)} in</p>
+        <p><strong>Height:</strong> ${heightIn.toFixed(2)} in</p>
+        <p><strong>PPI:</strong> ${ppi.toFixed(1)}</p>
+        <p><strong>FOV H/V:</strong> ${fovH.toFixed(1)}° / ${fovV.toFixed(1)}°</p>
+        <p><strong>PPD H/V:</strong> ${ppdH.toFixed(1)} / ${ppdV.toFixed(1)}</p>
+        <p><strong>PPD Diagonal:</strong> ${ppdD.toFixed(1)}</p>
+        <p><strong>Verdict:</strong> ${verdict}</p>
+        <p><strong>Upgrade Guidance:</strong> ${advice}</p>
+        <hr><small>Equations: width = D·rw/√(rw²+rh²); FOV = 2·atan((size/2)/distance); PPD = pixels/FOV°; PPI = √(pxW²+pxH²)/D.</small>
+    `;
+}
+
+</script>
 </body>
 </html>
